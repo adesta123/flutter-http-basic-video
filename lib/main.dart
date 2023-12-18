@@ -46,6 +46,52 @@ Future<ChukNorris> fetchChuckNorris() async {
   }
 }
 
+Future<List<Cat>> fetchRandomCat() async {
+  final response = await http.get(
+    Uri.parse('https://api.thecatapi.com/v1/images/search'),
+  );
+
+  if (response.statusCode == 200) {
+    final cats = jsonDecode(response.body);
+    return (cats as List<dynamic>)
+        .map((dynamic cat) => Cat.fromJson(cat as Map<String, dynamic>))
+        .toList();
+  } else {
+    throw Exception('Failed to load cat.');
+  }
+}
+
+Future<List<Cat>> fetchTenRandomCat() async {
+  final response = await http.get(
+    Uri.parse('https://api.thecatapi.com/v1/images/search?limit=10'),
+  );
+
+  if (response.statusCode == 200) {
+    final cats = jsonDecode(response.body);
+    return (cats as List<dynamic>)
+        .map((dynamic cat) => Cat.fromJson(cat as Map<String, dynamic>))
+        .toList();
+  } else {
+    throw Exception('Failed to load cat.');
+  }
+}
+
+Future<List<Course>> fetchCourses() async {
+  final response = await http.get(
+    Uri.parse('http://10.0.2.2:1337/api/courses'),
+  );
+
+  if (response.statusCode == 200) {
+    final courses = jsonDecode(response.body)['data'];
+    return (courses as List<dynamic>)
+        .map(
+            (dynamic course) => Course.fromJson(course as Map<String, dynamic>))
+        .toList();
+  } else {
+    throw Exception('Failed to load courses.');
+  }
+}
+
 class ChukNorris {
   final String id;
   final String value;
@@ -102,6 +148,102 @@ class Album {
   }
 }
 
+class Cat {
+  final String id;
+  final String url;
+  final int width;
+  final int height;
+
+  const Cat({
+    required this.id,
+    required this.url,
+    required this.width,
+    required this.height,
+  });
+
+  factory Cat.fromJson(Map<String, dynamic> json) {
+    return switch (json) {
+      {
+        'id': String id,
+        'url': String url,
+        'width': int width,
+        'height': int height,
+      } =>
+        Cat(
+          id: id,
+          url: url,
+          width: width,
+          height: height,
+        ),
+      _ => throw const FormatException('Failed to load cat.'),
+    };
+  }
+}
+
+class Course {
+  int? id;
+  Attributes? attributes;
+
+  Course({this.id, this.attributes});
+
+  Course.fromJson(Map<String, dynamic> json) {
+    id = json['id'];
+    attributes = json['attributes'] != null
+        ? new Attributes.fromJson(json['attributes'])
+        : null;
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    data['id'] = this.id;
+    if (this.attributes != null) {
+      data['attributes'] = this.attributes!.toJson();
+    }
+    return data;
+  }
+}
+
+class Attributes {
+  String? name;
+  String? description;
+  String? releaseDate;
+  bool? onSale;
+  String? createdAt;
+  String? updatedAt;
+  String? publishedAt;
+
+  Attributes(
+      {this.name,
+      this.description,
+      this.releaseDate,
+      this.onSale,
+      this.createdAt,
+      this.updatedAt,
+      this.publishedAt});
+
+  Attributes.fromJson(Map<String, dynamic> json) {
+    name = json['name'];
+    description = json['description'];
+    releaseDate = json['release_date'];
+    onSale = json['onSale'];
+    createdAt = json['createdAt'];
+    updatedAt = json['updatedAt'];
+    publishedAt = json['publishedAt'];
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    data['name'] = this.name;
+    data['description'] = this.description;
+    data['release_date'] = this.releaseDate;
+    data['onSale'] = this.onSale;
+    data['createdAt'] = this.createdAt;
+    data['updatedAt'] = this.updatedAt;
+    data['publishedAt'] = this.publishedAt;
+    return data;
+  }
+}
+
 void main() => runApp(const MyApp());
 
 class MyApp extends StatefulWidget {
@@ -114,14 +256,20 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   // late Future<Album> futureAlbum;
   // late Future<ChukNorris> futureChuckNorris;
-  late Future<List<Album>> futureAlbumList;
+  // late Future<List<Album>> futureAlbumList;
+  // late Future<List<Cat>> futureRandomCat;
+  late Future<List<Cat>> futureTenRandomCat;
+  late Future<List<Course>> futureCourses;
 
   @override
   void initState() {
     super.initState();
     // futureAlbum = fetchAlbum();
     // futureChuckNorris = fetchChuckNorris();
-    futureAlbumList = fetchAlbumList();
+    // futureAlbumList = fetchAlbumList();
+    // futureRandomCat = futureRandomCat();
+    futureTenRandomCat = fetchTenRandomCat();
+    futureCourses = fetchCourses();
   }
 
   @override
@@ -136,23 +284,26 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Fetch Data Example'),
         ),
         body: Center(
-          child: FutureBuilder<List<Album>>(
-            future: futureAlbumList,
+          child: FutureBuilder<List<Course>>(
+            future: fetchCourses(),
             builder: (context, snapshot) {
               if (snapshot.hasData) {
                 return ListView.builder(
-                    itemCount: snapshot.data!.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading: Text(snapshot.data![index].id.toString()),
-                        title: Text(snapshot.data![index].title),
-                      );
-                    });
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    return Card(
+                      child: Column(
+                        children: [
+                          Text(snapshot.data![index].attributes!.name!),
+                        ],
+                      ),
+                    );
+                  },
+                );
               } else if (snapshot.hasError) {
                 return Text('${snapshot.error}');
               }
 
-              // By default, show a loading spinner.
               return const CircularProgressIndicator();
             },
           ),
